@@ -51,7 +51,7 @@ def post_detail(request, year, month, day , post):
         publish__day=day
     )
     comments = post.comments.filter(active=True)
-   
+
     form = CommentForm()
 
     # List of similar posts
@@ -75,50 +75,49 @@ def post_detail(request, year, month, day , post):
     )
 
 
+
 def post_share(request, post_id):
-    post = get_object_or_404(
-        Post,
-        id=post_id,
-        status=Post.Status.PUBLISHED
-    )
+    # 1) fetch the post or 404
+    post = get_object_or_404(Post, id=post_id, status=Post.Status.PUBLISHED)
 
     sent = False
 
-    if request.method == 'POST':
-
+    if request.method == "POST":
+        # 2) bind form to POST
         form = EmailPostForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            post_url = request.build_absolute_url(
-                post.get_absolute_url()
-            )
+            # 3) build full URL
+            post_url = request.build_absolute_uri(post.get_absolute_url())
             subject = (
-                f"{cd['name']} ({cd['email']}) "
-                f"recommends you read {post.title}"
+                f"{cd['name']} ({cd['email']}) " f"recommends you read {post.title}"
             )
-            msg = (
+            message = (
                 f"Read {post.title} at {post_url}\n\n"
                 f"{cd['name']}'s comments: {cd['comments']}"
             )
-            
+            # 4) send
             send_mail(
                 subject=subject,
-                message=msg,
-                from_email=None,
-                recipient_list=[cd['to']]
+                message=message,
+                from_email=None,  # or your DEFAULT_FROM_EMAIL
+                recipient_list=[cd["to"]],
             )
             sent = True
-        else:
-            form = EmailPostForm()
+    else:
+        # GET request → unbound form
+        form = EmailPostForm()
 
-        return render(request,
-                    "blog/post/share.html",
-                       {
-                           "post": post,
-                            "form": form,
-                            'sent': sent
-                        }
-                )
+    # 5) always return a response
+    return render(
+        request,
+        "blog/post/share.html",
+        {
+            "post": post,
+            "form": form,
+            "sent": sent,
+        },
+    )
 
 
 @require_POST
